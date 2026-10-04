@@ -16,6 +16,7 @@ export const inject = ['systemPrompt', 'connection', 'sessionQuery', 'sessionCon
 /** Static Web guidance for primary outputs and existing-file references. */
 const FILE_REFERENCE_PROMPT = 'Prefer showing the primary results within your final response alongside a brief explanation. '
   + 'Use ![Description](<path/to/image.png>) when an image supports an explanation or comparison. Use [Description](<path/to/image.png>) when referring to an image or listing files. Enclose Markdown file destinations in angle brackets, especially paths containing spaces. '
+  + 'In Markdown destinations, write Windows drive-letter paths with forward slashes (C:/Users/example/.dsh/image.png); angle brackets do not prevent backslash escapes. Percent-encode literal %, #, ?, <, and > characters in filenames. '
   + 'Do not call present just to list edited source files, or run commands to check whether a diff view will appear. '
   + 'Use present when a separate file card helps the user open the complete deliverable, including images, Office documents, spreadsheets, and slide decks. Each presented file adds a card below the reply, with preview and native-open actions. '
   + 'Avoid repeating results already shown inline unless the separate card adds useful access. '
