@@ -1,0 +1,64 @@
+name: Windows Markdown fix - Linux validation
+
+on:
+  push:
+    branches: [ci/windows-markdown-linux-validation]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-markdown-linux-validation
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      DSH_TELEMETRY_DISABLED: '1'
+      DSH_SNAPSHOT: replay
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: 75431164b8cb8d4e8bb107b0cb1bf56dd3723eb1
+          persist-credentials: false
+      - name: Verify the contribution commit
+        run: test "$(git rev-parse HEAD)" = 75431164b8cb8d4e8bb107b0cb1bf56dd3723eb1
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Prepare Linux sandbox
+        run: bash scripts/prepare-ci-bubblewrap.sh
+      - name: Install browser and system dependencies
+        run: pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install --with-deps chromium
+      - name: Build the contribution
+        shell: bash
+        run: |
+          mkdir -p validation-logs
+          pnpm run build 2>&1 | tee validation-logs/build.log
+      - name: Check prompt registration and both live prompt snapshots
+        shell: bash
+        run: pnpm exec vitest run packages/client/ui-deliverables/tests/prompt.host.spec.ts 2>&1 | tee validation-logs/prompt.log
+      - name: Check the recorded-session corpus
+        shell: bash
+        run: pnpm run test:snapshot scripts/session-snapshot-corpus.corpus.ts 2>&1 | tee validation-logs/corpus.log
+      - name: Check documentation including Linux symlinks
+        shell: bash
+        run: pnpm run doc-sync 2>&1 | tee validation-logs/docs.log
+      - name: Replay standard and PTC Web sessions without refreshing expectations
+        shell: bash
+        run: pnpm run test:web:built apps/web/tests/replay-round-trip.e2e.ts apps/web/tests/ptc-round.e2e.ts 2>&1 | tee validation-logs/web-replay.log
+      - name: Confirm committed source and expectations were unchanged
+        run: git diff --exit-code
+      - name: Preserve validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-markdown-linux-validation-logs
+          path: validation-logs/*.log
+          if-no-files-found: ignore
